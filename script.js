@@ -28,6 +28,8 @@ const messageEl = document.getElementById('message');
 
 let pacman = { x: 1, y: 1, dir: {x:1,y:0}, angle:0.25, mouthOpen:true };
 let ghost = { x: cols-2, y: rows-2, dir: {x:0,y:-1} };
+const ghostSpeed = 2; // higher value means slower movement
+let ghostCounter = 0;
 let score = 0;
 let pellets = 0;
 
@@ -133,7 +135,10 @@ function gameLoop() {
   drawMap();
   moveEntity(pacman);
   eatPellet();
-  moveGhost();
+  if (ghostCounter % ghostSpeed === 0) {
+    moveGhost();
+  }
+  ghostCounter++;
   checkCollision();
   drawPacman();
   drawGhost();
