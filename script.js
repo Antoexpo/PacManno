@@ -1,159 +1,227 @@
-const canvas = document.getElementById('gameCanvas');
+const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 
-const tileSize = 40;
+let COLS = 10;
+let ROWS = 20;
+let BLOCK = 30;
 
-const map = [
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
-  [1,2,2,2,1,2,2,2,2,2,2,2,1,2,1],
-  [1,2,1,2,1,2,1,1,1,1,1,2,1,2,1],
-  [1,2,1,2,2,2,2,2,2,2,1,2,2,2,1],
-  [1,2,1,1,1,1,1,1,1,2,1,1,1,2,1],
-  [1,2,2,2,2,2,2,2,1,2,2,2,2,2,1],
-  [1,1,1,1,1,1,1,2,1,1,1,1,1,1,1],
-  [1,2,2,2,2,2,2,2,2,2,2,2,2,2,1],
-  [1,2,1,1,1,1,1,1,1,1,1,1,1,2,1],
-  [1,2,2,2,2,2,2,2,2,2,2,2,1,2,1],
-  [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+function resize() {
+  BLOCK = Math.floor(Math.min(window.innerWidth / COLS, (window.innerHeight-150) / ROWS));
+  canvas.width = COLS * BLOCK;
+  canvas.height = ROWS * BLOCK;
+}
+window.addEventListener('resize', resize);
+resize();
+
+const COLORS = [null, 'cyan', 'blue', 'orange', 'yellow', 'green', 'purple', 'red'];
+
+const SHAPES = [
+  [
+    [0,0,0,0],
+    [1,1,1,1],
+    [0,0,0,0],
+    [0,0,0,0]
+  ],
+  [
+    [2,0,0],
+    [2,2,2],
+    [0,0,0]
+  ],
+  [
+    [0,0,3],
+    [3,3,3],
+    [0,0,0]
+  ],
+  [
+    [4,4],
+    [4,4]
+  ],
+  [
+    [0,5,5],
+    [5,5,0],
+    [0,0,0]
+  ],
+  [
+    [0,6,0],
+    [6,6,6],
+    [0,0,0]
+  ],
+  [
+    [7,7,0],
+    [0,7,7],
+    [0,0,0]
+  ]
 ];
 
-const rows = map.length;
-const cols = map[0].length;
-
-canvas.width = cols * tileSize;
-canvas.height = rows * tileSize;
-
-const scoreEl = document.getElementById('score');
-const messageEl = document.getElementById('message');
-
-let pacman = { x: 1, y: 1, dir: {x:1,y:0}, angle:0.25, mouthOpen:true };
-let ghost = { x: cols-2, y: rows-2, dir: {x:0,y:-1} };
-const ghostSpeed = 2; // higher value means slower movement
-let ghostCounter = 0;
-let score = 0;
-let pellets = 0;
-
-for (let r=0;r<rows;r++) {
-  for (let c=0;c<cols;c++) {
-    if (map[r][c] === 2) pellets++;
-  }
-}
-
-function drawTile(x,y) {
-  if (map[y][x] === 1) {
-    ctx.fillStyle = '#0033CC';
-    ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
-  } else if (map[y][x] === 2) {
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(x*tileSize + tileSize/2, y*tileSize + tileSize/2, 5, 0, Math.PI*2);
-    ctx.fill();
-  }
-}
-
-function drawMap() {
-  for (let y=0;y<rows;y++) {
-    for (let x=0;x<cols;x++) {
-      drawTile(x,y);
+function rotate(matrix) {
+  const N = matrix.length;
+  const result = [];
+  for (let y=0;y<N;y++) {
+    result[y] = [];
+    for (let x=0;x<N;x++) {
+      result[y][x] = matrix[N-1-x][y] || 0;
     }
   }
+  return result;
 }
 
-function drawPacman() {
-  const px = pacman.x * tileSize + tileSize/2;
-  const py = pacman.y * tileSize + tileSize/2;
-  let startAngle = pacman.mouthOpen ? pacman.angle * Math.PI : 0;
-  let endAngle = pacman.mouthOpen ? (2 - pacman.angle) * Math.PI : Math.PI * 2;
-  startAngle += pacman.dir.x === -1 ? Math.PI :
-                pacman.dir.y === -1 ? -Math.PI / 2 :
-                pacman.dir.y === 1 ? Math.PI / 2 : 0;
-  endAngle += pacman.dir.x === -1 ? Math.PI :
-              pacman.dir.y === -1 ? -Math.PI / 2 :
-              pacman.dir.y === 1 ? Math.PI / 2 : 0;
-  ctx.fillStyle = 'yellow';
-  ctx.beginPath();
-  ctx.moveTo(px,py);
-  ctx.arc(px, py, tileSize/2-2, startAngle, endAngle);
-  ctx.fill();
+let board = [];
+for (let r=0;r<ROWS;r++) {
+  board[r] = Array(COLS).fill(0);
 }
 
-function drawGhost() {
-  const gx = ghost.x * tileSize + tileSize/2;
-  const gy = ghost.y * tileSize + tileSize/2;
-  ctx.fillStyle = 'red';
-  ctx.beginPath();
-  ctx.arc(gx, gy, tileSize/2-2, 0, Math.PI*2);
-  ctx.fill();
-}
-
-function updateScore() {
-  scoreEl.textContent = `Score: ${score}`;
-}
-
-function moveEntity(entity) {
-  const nx = entity.x + entity.dir.x;
-  const ny = entity.y + entity.dir.y;
-  if (map[ny][nx] !== 1) {
-    entity.x = nx;
-    entity.y = ny;
-  }
-}
-
-function moveGhost() {
-  const opts = [];
-  if (map[ghost.y-1][ghost.x] !== 1) opts.push({x:0,y:-1});
-  if (map[ghost.y+1][ghost.x] !== 1) opts.push({x:0,y:1});
-  if (map[ghost.y][ghost.x-1] !== 1) opts.push({x:-1,y:0});
-  if (map[ghost.y][ghost.x+1] !== 1) opts.push({x:1,y:0});
-  if (Math.random() < 0.3) ghost.dir = opts[Math.floor(Math.random()*opts.length)];
-  moveEntity(ghost);
-}
-
-function eatPellet() {
-  if (map[pacman.y][pacman.x] === 2) {
-    map[pacman.y][pacman.x] = 0;
-    score++;
-    updateScore();
-    if (score === pellets) {
-      messageEl.textContent = 'You Win!';
-      playing = false;
-    }
-  }
-}
-
-function checkCollision() {
-  if (pacman.x === ghost.x && pacman.y === ghost.y) {
-    messageEl.textContent = 'Game Over';
-    playing = false;
-  }
-}
-
+let current = null;
+let pieceCount = 0;
+let lines = 0;
+let dropCounter = 0;
+let dropInterval = 500;
+let lastTime = 0;
 let playing = true;
-function gameLoop() {
-  if (!playing) return;
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  drawMap();
-  moveEntity(pacman);
-  eatPellet();
-  if (ghostCounter % ghostSpeed === 0) {
-    moveGhost();
+
+function spawn() {
+  if (pieceCount >= 100) {
+    playing = false;
+    document.getElementById('message').textContent = 'Fine del gioco';
+    return;
   }
-  ghostCounter++;
-  checkCollision();
-  drawPacman();
-  drawGhost();
-  pacman.mouthOpen = !pacman.mouthOpen;
-  requestAnimationFrame(gameLoop);
+  const id = Math.floor(Math.random()*SHAPES.length);
+  const shape = SHAPES[id];
+  current = {
+    x: Math.floor((COLS - shape[0].length)/2),
+    y: 0,
+    shape: shape,
+    id: id+1
+  };
+  pieceCount++;
+  if (collide(board, current)) {
+    playing = false;
+    document.getElementById('message').textContent = 'Game Over';
+  }
 }
 
-updateScore();
-requestAnimationFrame(gameLoop);
+function collide(board, piece) {
+  const {shape, x:ox, y:oy} = piece;
+  for (let y=0;y<shape.length;y++) {
+    for (let x=0;x<shape[y].length;x++) {
+      if (shape[y][x]) {
+        const px = ox + x;
+        const py = oy + y;
+        if (px < 0 || px >= COLS || py >= ROWS) return true;
+        if (py >=0 && board[py][px]) return true;
+      }
+    }
+  }
+  return false;
+}
 
-document.addEventListener('keydown', (e) => {
+function merge(board, piece) {
+  piece.shape.forEach((row,y)=>{
+    row.forEach((value,x)=>{
+      if (value && piece.y + y >= 0) {
+        board[piece.y+y][piece.x+x] = piece.id;
+      }
+    });
+  });
+}
+
+function clearLines() {
+  outer: for (let y=ROWS-1;y>=0;y--) {
+    for (let x=0;x<COLS;x++) {
+      if (!board[y][x]) continue outer;
+    }
+    const row = board.splice(y,1)[0].fill(0);
+    board.unshift(row);
+    lines++;
+    document.getElementById('score').textContent = `Lines: ${lines}`;
+    y++;
+  }
+}
+
+function drawMatrix(matrix, offset, id) {
+  matrix.forEach((row,y)=>{
+    row.forEach((value,x)=>{
+      if (value) {
+        ctx.fillStyle = COLORS[id];
+        ctx.fillRect((x+offset.x)*BLOCK, (y+offset.y)*BLOCK, BLOCK-1, BLOCK-1);
+      }
+    });
+  });
+}
+
+function draw() {
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0,0,canvas.width, canvas.height);
+  board.forEach((row,y)=>{
+    row.forEach((value,x)=>{
+      if (value) {
+        ctx.fillStyle = COLORS[value];
+        ctx.fillRect(x*BLOCK, y*BLOCK, BLOCK-1, BLOCK-1);
+      }
+    });
+  });
+  if (current) drawMatrix(current.shape, {x:current.x, y:current.y}, current.id);
+}
+
+function update(time=0) {
+  if (!playing) return;
+  const delta = time - lastTime;
+  lastTime = time;
+  dropCounter += delta;
+  if (dropCounter > dropInterval) {
+    moveDown();
+  }
+  draw();
+  requestAnimationFrame(update);
+}
+
+function moveDown() {
+  current.y++;
+  if (collide(board,current)) {
+    current.y--;
+    merge(board,current);
+    clearLines();
+    spawn();
+  }
+  dropCounter = 0;
+}
+
+function move(dir) {
+  current.x += dir;
+  if (collide(board,current)) {
+    current.x -= dir;
+  }
+}
+
+function rotatePiece() {
+  const original = current.shape;
+  current.shape = rotate(current.shape);
+  if (collide(board,current)) {
+    current.shape = original;
+  }
+}
+
+spawn();
+update();
+
+// keyboard controls
+window.addEventListener('keydown', e=>{
+  if (!playing) return;
   switch(e.key) {
-    case 'ArrowUp': pacman.dir = {x:0,y:-1}; break;
-    case 'ArrowDown': pacman.dir = {x:0,y:1}; break;
-    case 'ArrowLeft': pacman.dir = {x:-1,y:0}; break;
-    case 'ArrowRight': pacman.dir = {x:1,y:0}; break;
+    case 'ArrowLeft': move(-1); break;
+    case 'ArrowRight': move(1); break;
+    case 'ArrowDown': moveDown(); break;
+    case 'ArrowUp': rotatePiece(); break;
   }
 });
+
+function handleButton(id,action) {
+  const btn = document.getElementById(id);
+  ['mousedown','touchstart'].forEach(ev=>{
+    btn.addEventListener(ev,e=>{ e.preventDefault(); action(); });
+  });
+}
+
+handleButton('left', ()=>move(-1));
+handleButton('right', ()=>move(1));
+handleButton('down', ()=>moveDown());
+handleButton('rotate', ()=>rotatePiece());

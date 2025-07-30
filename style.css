@@ -1,5 +1,5 @@
 body {
-  background: black;
+  background: #000;
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -7,21 +7,34 @@ body {
   height: 100vh;
   margin: 0;
   justify-content: center;
+  font-family: Arial, Helvetica, sans-serif;
 }
 
 #score {
   margin-bottom: 10px;
-  font-family: Arial, Helvetica, sans-serif;
   font-size: 20px;
 }
 
-canvas {
-  background: #000;
-  border: 2px solid yellow;
+#game {
+  background: #111;
+  border: 2px solid #555;
+  touch-action: none;
+}
+
+#controls {
+  margin-top: 10px;
+}
+
+#controls button {
+  background: #333;
+  color: #fff;
+  border: none;
+  padding: 10px 15px;
+  margin: 0 2px;
+  font-size: 18px;
 }
 
 #message {
   margin-top: 10px;
-  font-family: Arial, Helvetica, sans-serif;
   font-size: 24px;
 }
